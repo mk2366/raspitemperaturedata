@@ -24,17 +24,20 @@ except:
 if len(__sensors__) == 0:
     logging.error("Couldn't find any sensor in /sys/bus/w1/devices")
     raise RuntimeError("Couldn't find any sensor in /sys/bus/w1/devices")
-
-print __sensors__
+__sensors__ = list(map(os.path.basename, __sensors__))
+print(__sensors__)
 exit()
 
-
+# now open connection to mariaDB where we will store the data into
+# one table per w1_family
 try:
     mariaDB = MySQLdb.connect(__host__, __user__, __passwd__, __db__)
 except:
     raise
 
 with mariaDB.cursor() as cur:
+    # first create tables if not existant
+
     data = open('data','r')
     for line in data:
         time, temperature = line.split(';')
