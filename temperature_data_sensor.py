@@ -9,13 +9,13 @@ __user__ = os.environ['DB_USER']
 __passwd__ = os.environ['DB_PASSWD']
 __db__ = os.environ['DB_DB']
 
-__sensors__ = []
+__sensor_files__ = []
 
 # determine the connected sensors and store the names into __sensors__ list
 try:
     # constants taken from
     # https://github.com/spotify/linux/blob/master/drivers/w1/w1_family.h
-    __sensors__ = (glob.glob('/sys/bus/w1/devices/28-*') +
+    __sensor_files__ = (glob.glob('/sys/bus/w1/devices/28-*') +
                    glob.glob('/sys/bus/w1/devices/10-*') +
                    glob.glob('/sys/bus/w1/devices/22-*'))
 except:
@@ -24,8 +24,10 @@ except:
 if len(__sensors__) == 0:
     logging.error("Couldn't find any sensor in /sys/bus/w1/devices")
     raise RuntimeError("Couldn't find any sensor in /sys/bus/w1/devices")
-__sensors__ = list(map(os.path.basename, __sensors__))
-print(__sensors__)
+__sensor_ids__ = list(map(lamda sens: list(sens.split('-')),
+                          map(os.path.basename, __sensor_files__)))
+
+print(__sensor_ids__)
 exit()
 
 # now open connection to mariaDB where we will store the data into
