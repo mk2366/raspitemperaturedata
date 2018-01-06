@@ -24,7 +24,7 @@ except:
 if len(__sensors__) == 0:
     logging.error("Couldn't find any sensor in /sys/bus/w1/devices")
     raise RuntimeError("Couldn't find any sensor in /sys/bus/w1/devices")
-__sensor_ids__ = list(map(lamda sens: list(sens.split('-')),
+__sensor_ids__ = list(map(lambda sens: list(sens.split('-')),
                           map(os.path.basename, __sensor_files__)))
 
 print(__sensor_ids__)
