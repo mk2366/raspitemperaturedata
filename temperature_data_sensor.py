@@ -38,10 +38,10 @@ except:
 with mariaDB.cursor() as cur:
     for family in set(x[0] for x in __sensor_ids__):
         cur.execute("CREATE TABLE IF NOT EXISTS %s\
-                    (id string,\
+                    (id VARCHAR(64),\
                     t bigint,\
                     temperature int,\
-                    user string)" % family)
+                    user VARCHAR(256))" % ('t' + family))
 mariaDB.commit()
 
 while True:
