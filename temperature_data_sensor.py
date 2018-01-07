@@ -19,21 +19,35 @@ __sensor_files__ = []
 def db_connectivity():
     # now open connection to mariaDB where we will store the data into
     # one table per w1_family
+    global __db_commands_buffer
+    db_avail = True
     try:
         mariaDB = MySQLdb.connect(__host__, __user__, __passwd__, __db__)
     except:
-        raise
-    with mariaDB.cursor() as cur:
-        for execute_string in __db_commands_buffer:
-            cur.execute(execute_string)
-    mariaDB.commit()
-    mariaDB.close()
+        db_avail = False
+        logging.error('DB connectivity not given. Retry in 10 minutes.')
+    if db_avail:
+        with mariaDB.cursor() as cur:
+            for execute_string in __db_commands_buffer:
+                cur.execute(execute_string)
+        __db_commands_buffer = []
+        mariaDB.commit()
+        mariaDB.close()
+
     t = threading.Timer(600, db_connectivity)
     t.start()
 
 
 t = threading.Timer(600, db_connectivity)
 t.start()
+
+try:
+    f=open('/tmp/db_commands','rb')
+    import pickle
+    __db_commands_buffer = pickle.load(f)
+except:
+    # nothing was saved in panic: good
+    pass
 
 
 # determine the connected sensors and store the names into __sensors__ list
@@ -75,3 +89,8 @@ while True:
         execute_string = "INSERT INTO %s %s" % ('t'+fam, value_string)
         __db_commands_buffer += [execute_string]
     time.sleep(60)
+
+except KeyboardInterrupt:
+    import pickle
+    with open('/tmp/db_commands','wb') as f:
+        pickle.dump(__db_commands_buffer, f)
