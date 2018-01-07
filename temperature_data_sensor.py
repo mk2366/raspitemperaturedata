@@ -50,14 +50,12 @@ while True:
         f_cont = f.read()
         f.close()
         temp_index = f_cont.find("t=")
-        db_tuple = (time.time(), f_cont[temp_index+2, temp_index+7])
+        db_tuple = (time.time(), int(f_cont[temp_index+2:temp_index+7]))
         fam, id = (os.path.basename(sensor_file)).split("-")
+        value_string = "VALUE ('%s', %i, %i, '%s')" % (((id,) + db_tuple)
+                                                       + (__user__,))
         with mariaDB.cursor() as cur:
-            cur.execute('INSERT INTO %s VALUES (%s, %i, %i, %s)' % (((fam, id)
-                                                                    + db_tuple)
-                                                                    + (
-                                                                    __user__,
-                                                                    )))
+            cur.execute("INSERT INTO %s %s" % ('t'+fam, value_string))
     mariaDB.commit()
     time.sleep(60)
 
