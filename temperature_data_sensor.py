@@ -3,6 +3,7 @@ import os
 import glob
 import logging
 import time
+import threading
 
 # read environment to connect to a remote mariaDB
 __host__ = os.environ['DB_HOST']
@@ -10,7 +11,30 @@ __user__ = os.environ['DB_USER']
 __passwd__ = os.environ['DB_PASSWD']
 __db__ = os.environ['DB_DB']
 
+__db_commands_buffer = []
+
 __sensor_files__ = []
+
+
+def db_connectivity():
+    # now open connection to mariaDB where we will store the data into
+    # one table per w1_family
+    try:
+        mariaDB = MySQLdb.connect(__host__, __user__, __passwd__, __db__)
+    except:
+        raise
+    with mariaDB.cursor() as cur:
+        for execute_string in __db_commands_buffer:
+            cur.execute(execute_string)
+    mariaDB.commit()
+    mariaDB.close()
+    t = threading.Timer(600, db_connectivity)
+    t.start()
+
+
+t = threading.Timer(600, db_connectivity)
+t.start()
+
 
 # determine the connected sensors and store the names into __sensors__ list
 try:
@@ -28,21 +52,15 @@ if len(__sensor_files__) == 0:
 __sensor_ids__ = list(map(lambda sens: list(sens.split('-')),
                           map(os.path.basename, __sensor_files__)))
 
-# now open connection to mariaDB where we will store the data into
-# one table per w1_family
-try:
-    mariaDB = MySQLdb.connect(__host__, __user__, __passwd__, __db__)
-except:
-    raise
 
-with mariaDB.cursor() as cur:
-    for family in set(x[0] for x in __sensor_ids__):
-        cur.execute("CREATE TABLE IF NOT EXISTS %s\
-                    (id VARCHAR(64),\
-                    t bigint,\
-                    temperature int,\
-                    user VARCHAR(256))" % ('t' + family))
-mariaDB.commit()
+for family in set(x[0] for x in __sensor_ids__):
+    execute_string = "CREATE TABLE IF NOT EXISTS %s\
+                (id VARCHAR(64),\
+                t bigint,\
+                temperature int,\
+                user VARCHAR(256))" % ('t' + family)
+    __db_commands_buffer += [execute_string]
+
 
 while True:
     for sensor_file in __sensor_files__:
@@ -54,9 +72,6 @@ while True:
         fam, id = (os.path.basename(sensor_file)).split("-")
         value_string = "VALUE ('%s', %i, %i, '%s')" % (((id,) + db_tuple)
                                                        + (__user__,))
-        with mariaDB.cursor() as cur:
-            cur.execute("INSERT INTO %s %s" % ('t'+fam, value_string))
-    mariaDB.commit()
+        execute_string = "INSERT INTO %s %s" % ('t'+fam, value_string)
+        __db_commands_buffer += [execute_string]
     time.sleep(60)
-
-mariaDB.close()
