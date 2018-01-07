@@ -2,6 +2,7 @@ import MySQLdb
 import os
 import glob
 import logging
+import time
 
 # read environment to connect to a remote mariaDB
 __host__ = os.environ['DB_HOST']
@@ -16,8 +17,8 @@ try:
     # constants taken from
     # https://github.com/spotify/linux/blob/master/drivers/w1/w1_family.h
     __sensor_files__ = (glob.glob('/sys/bus/w1/devices/28-*') +
-                   glob.glob('/sys/bus/w1/devices/10-*') +
-                   glob.glob('/sys/bus/w1/devices/22-*'))
+                        glob.glob('/sys/bus/w1/devices/10-*') +
+                        glob.glob('/sys/bus/w1/devices/22-*'))
 except:
     logging.error("Couldn't find any sensor in /sys/bus/w1/devices")
     raise
@@ -27,9 +28,6 @@ if len(__sensor_files__) == 0:
 __sensor_ids__ = list(map(lambda sens: list(sens.split('-')),
                           map(os.path.basename, __sensor_files__)))
 
-print(__sensor_ids__)
-exit()
-
 # now open connection to mariaDB where we will store the data into
 # one table per w1_family
 try:
@@ -38,14 +36,29 @@ except:
     raise
 
 with mariaDB.cursor() as cur:
-    # first create tables if not existant
-
-    data = open('data','r')
-    for line in data:
-        time, temperature = line.split(';')
-        time = str(int(float(time)))
-        temperature = str(int(temperature))
-        cur.execute("INSERT into measurements_28_ef972f126461 VALUES(%s, %s);" % (time, temperature))
-
+    for family in set(x[0] for x in __sensor_ids__):
+        cur.execute("CREATE TABLE IF NOT EXISTS %s\
+                    (id string,\
+                    t bigint,\
+                    temperature int,\
+                    user string)" % family)
 mariaDB.commit()
+
+while True:
+    for sensor_file in __sensor_files__:
+        f = open(sensor_file + "/w1_slave", "r")
+        f_cont = f.read()
+        f.close()
+        temp_index = f_cont.find("t=")
+        db_tuple = (time.time(), f_cont[temp_index+2, temp_index+7])
+        fam, id = (os.path.basename(sensor_file)).split("-")
+        with mariaDB.cursor() as cur:
+            cur.execute('INSERT INTO %s VALUES (%s, %i, %i, %s)' % (((fam, id)
+                                                                    + db_tuple)
+                                                                    + (
+                                                                    __user__,
+                                                                    )))
+    mariaDB.commit()
+    time.sleep(60)
+
 mariaDB.close()
