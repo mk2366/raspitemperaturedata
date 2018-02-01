@@ -13,6 +13,24 @@ import logging
 import time
 import threading
 
+
+def touch(path):
+    """
+    Unix touch().
+
+    Copied from http://code.activestate.com/recipes/576915-touch/
+    """
+    now = time.time()
+    try:
+        # assume it's there
+        os.utime(path, (now, now))
+    except os.error:
+        # if it isn't, try creating the directory,
+        # a file with that name
+        os.makedirs(os.path.dirname(path))
+        open(path, "w").close()
+        os.utime(path, (now, now))
+
 # read environment to connect to a remote mariaDB
 __host__ = os.environ['DB_HOST']
 __user__ = os.environ['DB_USER']
@@ -22,8 +40,10 @@ __db__ = os.environ['DB_DB']
 __db_commands_buffer = []
 
 __sensor_files__ = []
-__panic_file__ = os.path.expanduser("~/dbcommands.panic")
-
+__panic_file__ = (os.path.dirname(os.path.abspath(__file__)) +
+                  "/dbcommands.panic")
+__watchdog_file__ = (os.path.dirname(os.path.abspath(__file__)) +
+                     "/watchdog")
 
 def db_connectivity():
     """
@@ -103,6 +123,7 @@ try:
             value_string = "VALUE ('%s', %i, %i)" % (((id,) + db_tuple))
             execute_string = "INSERT INTO %s %s" % ('t'+fam, value_string)
             __db_commands_buffer += [execute_string]
+        touch(__watchdog_file__)
         time.sleep(60)
 
 except:
