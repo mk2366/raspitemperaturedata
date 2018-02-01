@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+"""
+Temperature Sensor Script.
+
+This python script is used to read temperature sensors on the 1wire bus
+of the raspberry pi and send the data to a mysql db
+"""
+
 import MySQLdb
 import os
 import glob
@@ -14,18 +22,25 @@ __db__ = os.environ['DB_DB']
 __db_commands_buffer = []
 
 __sensor_files__ = []
+__panic_file__ = os.path.expanduser("~/dbcommands.panic")
 
 
 def db_connectivity():
-    # now open connection to mariaDB where we will store the data into
-    # one table per w1_family
+    """
+    Now open connection to mariaDB.
+
+    Here we are going to store into
+    one table per w1_family.
+    """
     global __db_commands_buffer
     db_avail = True
     try:
         mariaDB = MySQLdb.connect(__host__, __user__, __passwd__, __db__)
     except:
         db_avail = False
-        logging.error('DB connectivity not given. Retry in 10 minutes.')
+        vt = time.asctime()
+        logging.error('%s: DB connectivity not given. Retry in 10 minutes.'
+                      % (vt,))
     if db_avail:
         with mariaDB.cursor() as cur:
             for execute_string in __db_commands_buffer:
@@ -33,18 +48,20 @@ def db_connectivity():
         __db_commands_buffer = []
         mariaDB.commit()
         mariaDB.close()
+        vt = time.asctime()
+        logging.info('%s: DB connected successfully.' % (vt,))
 
-    t = threading.Timer(600, db_connectivity)
-    t.start()
+    threading.Timer(600, db_connectivity).start()
 
 
-t = threading.Timer(600, db_connectivity)
-t.start()
+threading.Timer(600, db_connectivity).start()
 
 try:
-    f=open('/tmp/db_commands','rb')
+    f = open(__panic_file__, 'rb')
     import pickle
     __db_commands_buffer = pickle.load(f)
+    f.close()
+    os.remove(__panic_file__)
 except:
     # nothing was saved in panic: good
     pass
@@ -71,8 +88,7 @@ for family in set(x[0] for x in __sensor_ids__):
     execute_string = "CREATE TABLE IF NOT EXISTS %s\
                 (id VARCHAR(64),\
                 t bigint,\
-                temperature int,\
-                user VARCHAR(256))" % ('t' + family)
+                temperature int)" % ('t' + family,)
     __db_commands_buffer += [execute_string]
 
 try:
@@ -84,13 +100,13 @@ try:
             temp_index = f_cont.find("t=")
             db_tuple = (time.time(), int(f_cont[temp_index+2:temp_index+7]))
             fam, id = (os.path.basename(sensor_file)).split("-")
-            value_string = "VALUE ('%s', %i, %i, '%s')" % (((id,) + db_tuple)
-                                                           + (__user__,))
+            value_string = "VALUE ('%s', %i, %i)" % (((id,) + db_tuple))
             execute_string = "INSERT INTO %s %s" % ('t'+fam, value_string)
             __db_commands_buffer += [execute_string]
         time.sleep(60)
 
-except KeyboardInterrupt:
+except:
     import pickle
-    with open('/tmp/db_commands', 'wb') as f:
+    with open(__panic_file__, 'wb') as f:
         pickle.dump(__db_commands_buffer, f)
+    raise
