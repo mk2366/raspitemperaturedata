@@ -12,6 +12,7 @@ import glob
 import logging
 import time
 import threading
+import shutil
 
 
 def touch(path):
@@ -61,14 +62,22 @@ def db_connectivity():
         logging.error('%s: DB connectivity not given. Retry in 10 minutes.'
                       % (vt,))
     if db_avail:
-        with mariaDB.cursor() as cur:
-            for execute_string in __db_commands_buffer:
-                cur.execute(execute_string)
-        __db_commands_buffer = []
-        mariaDB.commit()
-        mariaDB.close()
-        vt = time.asctime()
-        logging.info('%s: DB connected successfully.' % (vt,))
+        try:
+            with mariaDB.cursor() as cur:
+                for execute_string in __db_commands_buffer:
+                    cur.execute(execute_string)
+            __db_commands_buffer = []
+            mariaDB.commit()
+            mariaDB.close()
+            vt = time.asctime()
+            logging.info('%s: DB connected successfully.' % (vt,))
+        except Exception as e:
+            import traceback
+            logging.error(traceback.format_exc())
+            logging.error("%s: This should never happen. \
+                          This is within a thread!" % (time.asctime(),))
+            # desperate hoping it is due to WLAN drops accidently in this sec
+            threading.Timer(600, db_connectivity).start()
 
     threading.Timer(600, db_connectivity).start()
 
@@ -80,7 +89,7 @@ try:
     import pickle
     __db_commands_buffer = pickle.load(f)
     f.close()
-    os.remove(__panic_file__)
+    shutil.move(__panic_file__, __panic_file__ + str(time.time()))
 except:
     # nothing was saved in panic: good
     pass
@@ -120,11 +129,11 @@ try:
             db_tuple = (time.time(), int(f_cont[temp_index+2:temp_index+7]))
             fam, id = (os.path.basename(sensor_file)).split("-")
             value_string = "VALUE ('%s', %i, %i)" % (((id,) + db_tuple))
-            execute_string = "INSERT INTO %s %s" % ('t'+fam, value_string)
+            execute_string = ("INSERT INTO %s ('id', 't'. 'temperature') %s" %
+                              ('t'+fam, value_string))
             __db_commands_buffer += [execute_string]
         touch(__watchdog_file__)
         time.sleep(60)
-
 except:
     import pickle
     with open(__panic_file__, 'wb') as f:
