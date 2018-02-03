@@ -27,7 +27,6 @@ def touch(path):
     except os.error:
         # if it isn't, try creating the directory,
         # a file with that name
-        os.makedirs(os.path.dirname(path))
         open(path, "w").close()
         os.utime(path, (now, now))
 
