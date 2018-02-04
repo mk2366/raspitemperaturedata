@@ -13,6 +13,23 @@ import logging
 import time
 import threading
 import shutil
+import signal
+
+__kill__ = False
+
+
+def safe_panic():
+    import pickle
+    global __db_commands_buffer
+    with open(__panic_file__, 'wb') as f:
+        pickle.dump(__db_commands_buffer, f)
+    global __kill__
+    __kill__ = True
+
+
+# Want to safe the data when program is killed
+signal.signal(signal.SIGINT, safe_panic)
+signal.signal(signal.SIGTERM, safe_panic)
 
 
 def touch(path):
@@ -127,7 +144,7 @@ for family in set(x[0] for x in __sensor_ids__):
     __db_commands_buffer += [execute_string]
 
 try:
-    while True:
+    while not __kill__:
         for sensor_file in __sensor_files__:
             f = open(sensor_file + "/w1_slave", "r")
             f_cont = f.read()
