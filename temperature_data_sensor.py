@@ -92,8 +92,9 @@ def db_connectivity():
             except Exception:
                 import traceback
                 logging.error(traceback.format_exc())
-                logging.error("%s: Cursor avail but couldn't exec all inserts."
-                              % (time.asctime(),))
+                logging.error("%s: Cursor avail but couldn't \
+                              exec this inserts:\n%s"
+                              % (time.asctime(), execute_string))
                 mariaDB.rollback()
             else:
                 __db_commands_buffer = []
@@ -153,7 +154,7 @@ try:
             db_tuple = (time.time(), int(f_cont[temp_index+2:temp_index+7]))
             fam, id = (os.path.basename(sensor_file)).split("-")
             value_string = "VALUE ('%s', %i, %i)" % (((id,) + db_tuple))
-            execute_string = ("INSERT INTO %s ('id', 't', 'temperature') %s" %
+            execute_string = ("INSERT INTO %s (id, t, temperature) %s" %
                               ('t'+fam, value_string))
             __db_commands_buffer += [execute_string]
         touch(__watchdog_file__)
