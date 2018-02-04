@@ -31,6 +31,7 @@ def touch(path):
         open(path, "w").close()
         os.utime(path, (now, now))
 
+
 # read environment to connect to a remote mariaDB
 __host__ = os.environ['DB_HOST']
 __user__ = os.environ['DB_USER']
@@ -53,33 +54,39 @@ def db_connectivity():
     one table per w1_family.
     """
     global __db_commands_buffer
-    db_avail = True
     try:
         mariaDB = MySQLdb.connect(__host__, __user__, __passwd__, __db__)
     except:
-        db_avail = False
         vt = time.asctime()
         logging.error('%s: DB connectivity not given. Retry in 10 minutes.'
                       % (vt,))
-    if db_avail:
+    else:
         try:
-            with mariaDB.cursor() as cur:
-                for execute_string in __db_commands_buffer:
-                    cur.execute(execute_string)
-            __db_commands_buffer = []
-            mariaDB.commit()
-            mariaDB.close()
-            vt = time.asctime()
-            logging.info('%s: DB connected successfully.' % (vt,))
-        except Exception as e:
+            cur = mariaDB.cursor()
+        except Exception:
             import traceback
             logging.error(traceback.format_exc())
-            logging.error("%s: This should never happen. \
-                          This is within a thread!" % (time.asctime(),))
-            # desperate hoping it is due to WLAN drops accidently in this sec
-            threading.Timer(600, db_connectivity).start()
-
-    threading.Timer(600, db_connectivity).start()
+            logging.error("%s: Couldn't get cursor. DB connection is available"
+                          % (time.asctime(),))
+        else:
+            try:
+                for execute_string in __db_commands_buffer:
+                    cur.execute(execute_string)
+            except Exception:
+                import traceback
+                logging.error(traceback.format_exc())
+                logging.error("%s: Cursor avail but couldn't exec all inserts."
+                              % (time.asctime(),))
+                mariaDB.rollback()
+            else:
+                __db_commands_buffer = []
+                mariaDB.commit()
+            finally:
+                mariaDB.close()
+                vt = time.asctime()
+                logging.info('%s: DB connected successfully.' % (vt,))
+    finally:
+        threading.Timer(600, db_connectivity).start()
 
 
 threading.Timer(600, db_connectivity).start()
