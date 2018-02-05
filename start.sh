@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 me=`realpath $0`
 base=`dirname $me`
