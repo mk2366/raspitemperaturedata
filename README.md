@@ -15,5 +15,8 @@ shell> mysqldump [options] db_name [tbl_name ...]
 shell> mysqldump [options] --databases db_name ...
 shell> mysqldump [options] --all-databases
 
+Crontab:
+@reboot . $HOME/.profile; /home/pi/production/raspitemperaturedata/start.sh >> /home/pi/production/raspitemperaturedata/log.out 2>&1
+
 
 pipenv install mysql-python
