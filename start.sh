@@ -6,4 +6,4 @@ dat=`date`
 
 cd $base
 mv nohup.out "nohup.out"$dat
-nohup pipenv run temperature_data_sensor.py &
+nohup pipenv run ./temperature_data_sensor.py &
