@@ -5,5 +5,5 @@ base=`dirname $me`
 dat=`date`
 
 cd $base
-mv nohup.out "nohup.out"$dat
-nohup pipenv run temperature_data_sensor.py &
+mv nohup.out "nohup.out$dat"
+nohup pipenv run ./temperature_data_sensor.py &
