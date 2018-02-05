@@ -1,5 +1,9 @@
 #!/bin/bash
 
-cd ~/dev/raspitemperaturedata
-pipenv shell
-nohup python temperature_data_sensor.py &
+me=`realpath $0`
+base=`dirname $me`
+dat=`date`
+
+cd $base
+mv nohup.out "nohup.out"$dat
+nohup pipenv run temperature_data_sensor.py &

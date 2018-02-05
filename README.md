@@ -10,5 +10,10 @@ sudo apt-get install libmariadbclient-dev
 before
 pipenv install mysqlclient
 
+Hint:
+shell> mysqldump [options] db_name [tbl_name ...]
+shell> mysqldump [options] --databases db_name ...
+shell> mysqldump [options] --all-databases
+
 
 pipenv install mysql-python
