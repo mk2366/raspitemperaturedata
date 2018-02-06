@@ -18,7 +18,7 @@ import signal
 __kill__ = False
 
 
-def safe_panic():
+def safe_panic(signo, stackframe):
     import pickle
     global __db_commands_buffer
     with open(__panic_file__, 'wb') as f:
